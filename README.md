@@ -7,5 +7,3 @@ To-do
 - implement tests
 - Implement container blocks
 
-
-# If you fall here needing a parser, i dont recommend using it until version 1.0.0+
