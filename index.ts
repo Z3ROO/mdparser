@@ -2,20 +2,35 @@ export interface ParsingPattern {
   tag: string, 
   regExp: RegExp, 
   delimeter: RegExp[], 
-  extra?: {
-    class?: string,
-    props?: any,
-    div?: string,
-    contentless?: boolean,
-    escapeContent?: boolean
-  }
+  extra?: ParsingPatternExtras
+}
+export interface ParsingPatternExtras {
+  class?: string,
+  props?: {
+    [key: string]: RegExp
+  },
+  wrapper?: string,
+  contentless?: boolean,
+  escapeContent?: boolean
 }
 
 const he = require('he');
 
+interface IAST {
+  type: string
+  content: string | IAST | IAST[]
+  class?: string,
+  wrapper?: string
+  props?: {
+    [key: string]: string
+  }
+  contentless?: boolean
+}
+
 export class MDParser {
   #originalText: string;
   parsedText: string;
+  AST: IAST[];
 
   constructor(originalText: string) {
     this.#originalText = originalText;
@@ -23,19 +38,18 @@ export class MDParser {
   }
 
   #initParsing(text: string, config?: any): string {
-    let AST = [];
     text = this.#externalFunctionality(text);
     // all container blocks recursevely
-    AST = this.#parseContainerBlocks(text);
-    AST = this.#parseLeafBlocks(AST);
-    AST = this.#parseInlines(AST);
+    this.AST = this.#parseContainerBlocks(text);
+    this.AST = this.#parseLeafBlocks(this.AST);
+    this.AST = this.#parseInlines(this.AST);
     
     // all inline recursevely
     // if(config.ast)
     //   return AST;
     // else
 
-    return this.#parseASTIntoMarkdown(AST);
+    return this.#parseASTIntoMarkdown(this.AST);
   }
 
   #externalFunctionality(text: string):string {
@@ -44,14 +58,15 @@ export class MDParser {
     return text
   }
 
-  #parseContainerBlocks(parseable: string) {
+  #parseContainerBlocks(parseable: string): IAST[] {
+   
     return [{
       type: 'text',
       content: parseable
     }];
   }
   
-  #parseLeafBlocks(parseable: any[]): any[] {
+  #parseLeafBlocks(parseable: IAST[]): IAST[] {
 
     let parsed = this.#iterateLeafBlocks(parseable, this.#codeBlocks());
     parsed = this.#iterateLeafBlocks(parsed, this.#headings(1));
@@ -62,26 +77,25 @@ export class MDParser {
     parsed = this.#iterateLeafBlocks(parsed, this.#headings(6));
     
     parsed = parsed.map((node) => {
-      if (node.type === 'text')
-        node.content = node.content.trim()
+      if (node.type === 'text' && typeof node.content === 'string')
+        node.content = node.content.trim();
       
       return node 
-    }).filter((node) => node.content.trim())
+    }).filter((node) => typeof node.content === 'string' && node.content.trim());
     return parsed;    
   }
 
-  #iterateLeafBlocks(parseable: any[], pattern: ParsingPattern): any[] {
+  #iterateLeafBlocks(parseable: IAST[], pattern: ParsingPattern): IAST[] {
     let concluded = true;
 
-    let parsed = parseable.map((node) => {
-      if (['p', 'codeblock', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(node.type))
-        return node;
-      else if (['ul','li','blockquote'].includes(node.type)) {
+    let parsed: (IAST|IAST[])[] = parseable.map((node) => {
+      if (['ul','li','blockquote'].includes(node.type)) {
         //return something;
       }
       else if (node.type === 'text') {
+        node.content = node.content as string;
         const nodeParsed = this.#parse(node.content, pattern);
-        if (nodeParsed){
+        if (nodeParsed != null){
           concluded = false;
           return nodeParsed;
         }
@@ -90,26 +104,26 @@ export class MDParser {
       return node
     })
 
-    parsed = [].concat.apply([], parsed);
+    parsed = Array().concat.apply([], parsed); /// (IAST|IAST[])[] to IAST[]
 
     if (concluded)
-      return parsed
+      return parsed as IAST[];
     else
-      return this.#iterateLeafBlocks(parsed, pattern)
+      return this.#iterateLeafBlocks(parsed as IAST[], pattern);
   }
 
-  #parseInlines(parseable: any[]): any[] {
+  #parseInlines(parseable: IAST[]): IAST[] {
     let parsed = this.#iterateInlines(parseable, this.#codeSpan());
-    parsed = this.#iterateInlines(parsed, this.#bold());
+    parsed = this.#iterateInlines(parsed, this.#bold());//?
     parsed = this.#iterateInlines(parsed, this.#italic());
     parsed = this.#iterateInlines(parsed, this.#images());
     parsed = this.#iterateInlines(parsed, this.#links());
-    parsed = this.#iterateInlines(parsed, this.#highlight());
+    parsed = this.#iterateInlines(parsed, this.#highlight());//?
 
     return parsed
   }
 
-  #iterateInlines(parseable: any[], pattern: any):any[] {
+  #iterateInlines(parseable: IAST[], pattern: ParsingPattern):IAST[] {
     let concluded = true;
     let parsed = parseable.map(node => {
       if (typeof node.content === 'string') {
@@ -124,11 +138,11 @@ export class MDParser {
           return node
       }
 
-      node.content = this.#iterateInlines(node.content, pattern);
+      node.content = this.#iterateInlines(node.content as IAST[], pattern);
       return node
     })
 
-    parsed = [].concat.apply([], parsed);
+    parsed = Array().concat.apply([], parsed);
 
     if (concluded)
       return parsed
@@ -136,35 +150,33 @@ export class MDParser {
       return this.#iterateInlines(parsed, pattern);
   }
 
-  #parse(text: string, pattern: ParsingPattern): any[]|boolean {
-    const match = text.match(pattern.regExp);
+  #parse(text: string, pattern: ParsingPattern): IAST[] {
+    let matchPattern = text.match(pattern.regExp);
 
-    if (match) {
-      const [beggining, endign] = pattern.delimeter;
-      let matchedChunk = match[0];
-      const chunkIndex = text.indexOf(matchedChunk)
-      const chunkLength = matchedChunk.length;
-
-      let newBlock: {type: string, content: string, class?: string, div?: string, props?: any, contentless?: boolean} = {
+    if (matchPattern) {
+      const match = matchPattern[0];
+      const matchOffsetIndex = text.indexOf(match)
+      const matchLength = match.length;
+      
+      let newBlock: IAST = {
         type: pattern.tag, 
-        content: matchedChunk
+        content: match
       }
-
+      const [beggining, endign] = pattern.delimeter;
+      
       if (pattern.extra?.contentless) {
-        newBlock.content = ''
-        newBlock.contentless = true
+        newBlock.content = '';
+        newBlock.contentless = true;
       }
       else {
-        if (beggining)
-          newBlock.content = newBlock.content.replace(beggining, '');
-        if (endign)
-          newBlock.content = newBlock.content.replace(endign, '');    
+        newBlock.content = newBlock.content as string;
+        newBlock.content = newBlock.content.replace(beggining, '').replace(endign, '');
       }
 
       if (pattern.extra?.props) {
         newBlock.props = {}
         for (let prop in pattern.extra.props) {
-          const propMatch = matchedChunk.match(pattern.extra.props[prop])
+          const propMatch = match.match(pattern.extra.props[prop])
           if (propMatch === null) throw new Error('prop pattern returned null')
 
           newBlock.props[prop] = propMatch[0];
@@ -172,33 +184,33 @@ export class MDParser {
       }      
       
       if (pattern.extra?.escapeContent) {
-        newBlock.content = this.#escapeSpecialCharacters(newBlock.content);
+        newBlock.content = this.#escapeSpecialCharacters(newBlock.content as string);
       }
 
       if (pattern.extra?.class) 
         newBlock.class = pattern.extra.class;
-      if (pattern.extra?.div)
-        newBlock.div = pattern.extra.div;
+      if (pattern.extra?.wrapper)
+        newBlock.wrapper = pattern.extra.wrapper;
       
       const finalBatch = [newBlock];
       
-      const previousContent = text.substring(0,chunkIndex);
+      const previousContent = text.substring(0,matchOffsetIndex);
       if (previousContent)
         finalBatch.unshift({type: 'text', content: previousContent});
       
-      const nextContent = text.substring(chunkIndex+chunkLength);
+      const nextContent = text.substring(matchOffsetIndex+matchLength);
       if (nextContent)
         finalBatch.push({type: 'text', content: nextContent});
 
       return finalBatch
     }
 
-    return false
+    return null
   }
   
-  #parseASTIntoMarkdown(AST: any[], firstRound = true):string {
-    AST = AST.map(node => {
-      if (firstRound && node.type === 'text'){
+  #parseASTIntoMarkdown(AST: IAST[], outerMostNode = true):string {
+    let parsedAST: string|string[] = AST.map(node => {
+      if (outerMostNode && node.type === 'text'){
         node.type = 'p'
       }
       
@@ -213,9 +225,9 @@ export class MDParser {
         }
       }
 
-      if (node.div){
+      if (node.wrapper){
         node.content = `<${node.type}>${node.content}</${node.type}>`
-        node.type = node.div
+        node.type = node.wrapper
       }
 
       if (typeof node.content === 'string'){
@@ -225,12 +237,12 @@ export class MDParser {
           return `<${node.type}${additional}/>`
       }
 
-      return `<${node.type}${additional}>${this.#parseASTIntoMarkdown(node.content, false)}</${node.type}>`
+      return `<${node.type}${additional}>${this.#parseASTIntoMarkdown(node.content as IAST[], false)}</${node.type}>`
     })
 
-    const parsedMarkdown = AST.join('');
+    parsedAST = parsedAST.join('');
 
-    return parsedMarkdown
+    return parsedAST
   }
 
   //LEAFBLOCKS//
@@ -279,9 +291,9 @@ export class MDParser {
     const codeblocksRegExp = new RegExp('```(.*)\n((?!```).\n*)+\n```');
 
     const delimeter = [new RegExp('(^|\n*)```(.*)\n'), new RegExp('```$')]
-    const extra = {
+    const extra: ParsingPatternExtras = {
       class: 'code-block', 
-      div: 'div',
+      wrapper: 'div',
       props: {
         id: /(?<=```).*(?=\n)/
       },
@@ -294,9 +306,9 @@ export class MDParser {
     const codeSpanRegExp = new RegExp('`((?!`).\\n?)+`');
 
     const delimeter = [new RegExp('^`'), new RegExp('`$')]
-    const extra = {
+    const extra: ParsingPatternExtras = {
       class: 'code-span', 
-      div: 'span',
+      wrapper: 'span',
       escapeContent: true
     }
 
@@ -314,7 +326,7 @@ export class MDParser {
 
     const delimeter = [/^\[/, /\]\(.+\)$/];
     
-    const extra = {
+    const extra: ParsingPatternExtras = {
       props: {
         href: /(?<=\().+(?=\)$)/
       }
@@ -334,7 +346,7 @@ export class MDParser {
 
     const delimeter = [/^\!\[/, /\]\(.+\)$/];
     
-    const extra = {
+    const extra: ParsingPatternExtras = {
       props: {
         src: /(?<=\().+(?=\)$)/,
         alt: /(?<=^\!\[).+(?=\])/
