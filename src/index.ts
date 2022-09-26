@@ -1,3 +1,4 @@
+//hide implementation detail, let the code tell a story and dive in if necessary to understand how exactly happened
 export interface ParsingPattern {
   tag: string, 
   regExp: RegExp, 
@@ -14,9 +15,9 @@ export interface ParsingPatternExtras {
   escapeContent?: boolean
 }
 
-const he = require('he');
+import * as he from 'he';
 
-interface IAST {
+export interface IAST {
   type: string
   content: string | IAST | IAST[]
   class?: string,
@@ -27,6 +28,7 @@ interface IAST {
   contentless?: boolean
 }
 
+
 export class MDParser {
   #originalText: string;
   parsedText: string;
@@ -34,7 +36,7 @@ export class MDParser {
 
   constructor(originalText: string) {
     this.#originalText = originalText;
-    this.parsedText = this.#initParsing(originalText);    
+    this.parsedText = this.#initParsing(originalText);
   }
 
   #initParsing(text: string, config?: any): string {
@@ -393,7 +395,6 @@ export class MDParser {
     return currentText;
   }
 
-
   // UTILS
 
   #escapeMarkdownCharacters(block: string) {
@@ -409,3 +410,14 @@ export class MDParser {
   }
 
 }
+
+
+
+// browser classic script tag only
+
+declare global {
+  interface Window { MDParser: any }
+}
+
+if (window != null)
+  window.MDParser = MDParser
