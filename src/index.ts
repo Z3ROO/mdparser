@@ -410,14 +410,3 @@ export class MDParser {
   }
 
 }
-
-
-
-// browser classic script tag only
-
-declare global {
-  interface Window { MDParser: any }
-}
-
-if (window != null)
-  window.MDParser = MDParser

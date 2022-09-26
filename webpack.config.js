@@ -1,16 +1,30 @@
-import process from "process";
-import webpackDev from './config/webpack/webpack.dev-config.js'
-import webpackProd from './config/webpack/webpack.prod-config.js'
+import path from 'path';
+import * as url from 'url';
 
-const mode = process.env.NODE_ENV
-let configFile;
+const  __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
-if (mode === 'dev')
-  configFile = webpackDev
-else if (mode === 'prod')
-  configFile = webpackProd
-else 
-  console.log('webpack-config-file: Invalid mode, check if NODE_ENV is set correctly.')
+import HtmlWebpackPlugin from 'html-webpack-plugin';
 
-export default configFile
-  
+export default {
+  mode: 'development',
+  entry: {
+    index: './dist/esm/index.mjs',
+    testPage: './config/test-template/testPage.js'
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      title: 'MdParser',
+      template: './config/test-template/testPage.html'
+    })
+  ],  
+  output: {
+    path: path.resolve(__dirname, '../../sandbox'),
+    filename: '[name].bundle.js'
+  },
+  devServer: {
+    static: './sandbox'
+  },  
+  optimization: {
+    runtimeChunk: 'single'
+  },
+}

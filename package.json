@@ -1,8 +1,13 @@
 {
   "name": "@z3ro/mdparser",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "",
-  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "require": "./dist/commonjs/index.cjs",
+      "import": "./dist/esm/index.mjs"
+    }
+  },
   "type": "module",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -29,7 +34,6 @@
     "typescript": "^4.8.3",
     "webpack": "^5.74.0",
     "webpack-cli": "^4.10.0",
-    "webpack-dev-server": "^4.11.1",
-    "webpack-merge": "^5.8.0"
+    "webpack-dev-server": "^4.11.1"
   }
 }
