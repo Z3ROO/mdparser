@@ -8,9 +8,10 @@ import HtmlWebpackPlugin from 'html-webpack-plugin';
 export default {
   mode: 'development',
   entry: {
-    index: './dist/esm/index.js',
+    index: './src/index.ts',
     testPage: './config/test-template/testPage.js'
   },
+  devtool: 'inline-source-map',
   plugins: [
     new HtmlWebpackPlugin({
       title: 'MdParser',
@@ -20,6 +21,17 @@ export default {
   output: {
     path: path.resolve(__dirname, '../../sandbox'),
     filename: '[name].bundle.js'
+  },
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/i,
+        use: ['ts-loader']
+      }
+    ]
+  },
+  resolve: {
+    extensions: ['.ts', '.js', '.tsx']
   },
   devServer: {
     static: './sandbox'
