@@ -33,20 +33,35 @@ export interface IAST {
 export class MDParser {
   parsedText: string;
   AST: IAST[];
+  containerBlocks: ParsingPattern[] = []
+  leafBlocks: ParsingPattern[] = []
+  inlineBlocks: ParsingPattern[] = []
 
   public parse(text: string, config?: any): string {
     text = this.#externalFunctionality(text);
     
-    this.AST = this.#parseContainerBlocks(text);
+    this.AST = [{
+      type: 'text',
+      content: text
+    }]
+
+    this.AST = this.#parseContainerBlocks(this.AST);
     this.AST = this.#parseLeafBlocks(this.AST);
     this.AST = this.#parseInlines(this.AST);
-    
-    // all inline recursevely
-    // if(config.ast)
-    //   return AST;
-    // else
 
     return this.#parseASTIntoMarkdown(this.AST);
+  }
+
+  public newContainerBlockPattern(pattern: ParsingPattern| ParsingPattern[]) {
+    this.containerBlocks = this.containerBlocks.concat(pattern)
+  }
+
+  public newLeafBlockPattern(pattern: ParsingPattern| ParsingPattern[]) {
+    this.leafBlocks = this.leafBlocks.concat(pattern)
+  }
+
+  public newInlinePattern(pattern: ParsingPattern|ParsingPattern[]) {
+    this.inlineBlocks = this.inlineBlocks.concat(pattern);
   }
 
   #externalFunctionality(text: string):string {
@@ -55,23 +70,19 @@ export class MDParser {
     return text
   }
 
-  #parseContainerBlocks(parseable: string): IAST[] {
-   
-    return [{
-      type: 'text',
-      content: parseable
-    }];
+  #parseContainerBlocks(parseable: IAST[]): IAST[] {
+    
+    //to be implemented
+
+    return parseable;
   }
   
   #parseLeafBlocks(parseable: IAST[]): IAST[] {
+    let parsed = parseable;
 
-    let parsed = this.#iterateLeafBlocks(parseable, this.#codeBlocks());
-    parsed = this.#iterateLeafBlocks(parsed, this.#headings(1));
-    parsed = this.#iterateLeafBlocks(parsed, this.#headings(2));
-    parsed = this.#iterateLeafBlocks(parsed, this.#headings(3));
-    parsed = this.#iterateLeafBlocks(parsed, this.#headings(4));
-    parsed = this.#iterateLeafBlocks(parsed, this.#headings(5));
-    parsed = this.#iterateLeafBlocks(parsed, this.#headings(6));
+    this.leafBlocks.forEach(pattern => {
+      parsed = this.#iterateLeafBlocks(parsed, pattern);
+    });
     
     parsed = parsed.map((node) => {
       if (node.type === 'text' && typeof node.content === 'string')
@@ -79,6 +90,7 @@ export class MDParser {
       
       return node 
     }).filter((node) => typeof node.content === 'string' && node.content.trim());
+
     return parsed;    
   }
 
@@ -110,12 +122,11 @@ export class MDParser {
   }
 
   #parseInlines(parseable: IAST[]): IAST[] {
-    let parsed = this.#iterateInlines(parseable, this.#codeSpan());
-    parsed = this.#iterateInlines(parsed, this.#bold());//?
-    parsed = this.#iterateInlines(parsed, this.#italic());
-    parsed = this.#iterateInlines(parsed, this.#images());
-    parsed = this.#iterateInlines(parsed, this.#links());
-    parsed = this.#iterateInlines(parsed, this.#highlight());//?
+    let parsed = parseable;
+
+    this.inlineBlocks.forEach(pattern => {
+      this.#iterateInlines(parsed, pattern)
+    });
 
     return parsed
   }
@@ -274,111 +285,7 @@ export class MDParser {
     // }
   
     return currentText
-  }
-  
-  #headings(num: number): ParsingPattern {
-
-    const headingRegExp = new RegExp("(^ {0,3}|\n+ {0,3})#{"+num+"} +.*")
-
-    const delimeter = [new RegExp(`(^|\n+)${'#'.repeat(num)}\\s+`)]      
-
-    return {tag: 'h'+num, regExp: headingRegExp, delimeter}
-  }
-
-  #codeBlocks(): ParsingPattern {
-    const codeblocksRegExp = new RegExp('```(.*)\n((?!```).\n*)+\n```');
-
-    const delimeter = [new RegExp('(^|\n*)```(.*)\n'), new RegExp('```$')]
-    const extra: ParsingPatternExtras = {
-      class: 'code-block', 
-      wrapper: 'div',
-      props: {
-        id: /(?<=```).*(?=\n)/
-      },
-      escapeContent: true
-    }
-    return {tag: 'code', regExp: codeblocksRegExp, delimeter, extra};
-  }
-
-  #codeSpan(): ParsingPattern {
-    const codeSpanRegExp = new RegExp('`((?!`).\\n?)+`');
-
-    const delimeter = [new RegExp('^`'), new RegExp('`$')]
-    const extra: ParsingPatternExtras = {
-      class: 'code-span', 
-      wrapper: 'span',
-      escapeContent: true
-    }
-
-    return {tag: 'code', regExp: codeSpanRegExp, delimeter, extra};
-  }
-
-  //INLINES//
-  #links(): ParsingPattern {
-    // all but brackets (((?!\\[|\\]).)+)
-    // all but parantheses (((?!\\(|\\)).)+)
-    // between brackets \\!\\[allbutbrackets\\]
-    // between parantheses \\(allbutparentheses\\)
-    
-    const linkRegExp = new RegExp("\\[(((?!\\[|\\]).)+)\\]\\((((?!\\(|\\)).)+)\\)")
-
-    const delimeter = [/^\[/, /\]\(.+\)$/];
-    
-    const extra: ParsingPatternExtras = {
-      props: {
-        href: /(?<=\().+(?=\)$)/
-      }
-    }      
- 
-    return {tag: 'a', regExp: linkRegExp, delimeter, extra}
-  }
-  
-  #images(): ParsingPattern {
-    // exclamation mark \\! 
-    // all but brackets (((?!\\[|\\]).)+)
-    // all but parantheses (((?!\\(|\\)).)+)
-    // between brackets \\!\\[allbutbrackets\\]
-    // between parantheses \\(allbutparentheses\\)
-    
-    const imgRegExp = new RegExp("\\!\\[(((?!\\[|\\]).)+)\\]\\((((?!\\(|\\)).)+)\\)")
-
-    const delimeter = [/^\!\[/, /\]\(.+\)$/];
-    
-    const extra: ParsingPatternExtras = {
-      props: {
-        src: /(?<=\().+(?=\)$)/,
-        alt: /(?<=^\!\[).+(?=\])/
-      },
-      contentless: true
-    }
-       
-    return {tag: 'img', regExp: imgRegExp, delimeter, extra}
-  }
-  
-  #bold(): ParsingPattern {
-    
-    const boldRegExp = new RegExp("\\*\\*(((?!\\*\\*).)+)\\*\\*")
-    const delimeter = [new RegExp('^\\*\\*'), new RegExp('\\*\\*$')];   
-  
-    return {tag: 'strong', regExp: boldRegExp, delimeter}
-  }
-  
-  #italic(): ParsingPattern {
-    
-    const italicRegExp = new RegExp("\\*(((?!\\*).)+)\\*")
-
-    const delimeter = [new RegExp('^\\*'), new RegExp('\\*$')]
-
-    return {tag: 'i', regExp: italicRegExp, delimeter}
-  }
-
-  #highlight(): ParsingPattern {
-    const highlightRegExp = /""((?!"").)+""/;
-
-    const delimeter = [/^""/, /""$/];
-
-    return {tag: 'mark', regExp: highlightRegExp, delimeter}
-  }
+  }  
 
   //ASIDES
 
@@ -406,4 +313,129 @@ export class MDParser {
   }
 }
 
-export default new MDParser();
+const mdParser = new MDParser()
+
+function headings(num: number): ParsingPattern {
+
+  const headingRegExp = new RegExp("(^ {0,3}|\n+ {0,3})#{"+num+"} +.*")
+
+  const delimeter = [new RegExp(`(^|\n+)${'#'.repeat(num)}\\s+`)]      
+
+  return {tag: 'h'+num, regExp: headingRegExp, delimeter}
+}
+
+function codeBlocks(): ParsingPattern {
+  const codeblocksRegExp = new RegExp('```(.*)\n((?!```).\n*)+\n```');
+
+  const delimeter = [new RegExp('(^|\n*)```(.*)\n'), new RegExp('```$')]
+  const extra: ParsingPatternExtras = {
+    class: 'code-block', 
+    wrapper: 'div',
+    props: {
+      id: /(?<=```).*(?=\n)/
+    },
+    escapeContent: true
+  }
+  return {tag: 'code', regExp: codeblocksRegExp, delimeter, extra};
+}
+
+function codeSpan(): ParsingPattern {
+  const codeSpanRegExp = new RegExp('`((?!`).\\n?)+`');
+
+  const delimeter = [new RegExp('^`'), new RegExp('`$')]
+  const extra: ParsingPatternExtras = {
+    class: 'code-span', 
+    wrapper: 'span',
+    escapeContent: true
+  }
+
+  return {tag: 'code', regExp: codeSpanRegExp, delimeter, extra};
+}
+
+//INLINES//
+function links(): ParsingPattern {
+  // all but brackets (((?!\\[|\\]).)+)
+  // all but parantheses (((?!\\(|\\)).)+)
+  // between brackets \\!\\[allbutbrackets\\]
+  // between parantheses \\(allbutparentheses\\)
+  
+  const linkRegExp = new RegExp("\\[(((?!\\[|\\]).)+)\\]\\((((?!\\(|\\)).)+)\\)")
+
+  const delimeter = [/^\[/, /\]\(.+\)$/];
+  
+  const extra: ParsingPatternExtras = {
+    props: {
+      href: /(?<=\().+(?=\)$)/
+    }
+  }      
+
+  return {tag: 'a', regExp: linkRegExp, delimeter, extra}
+}
+
+function images(): ParsingPattern {
+  // exclamation mark \\! 
+  // all but brackets (((?!\\[|\\]).)+)
+  // all but parantheses (((?!\\(|\\)).)+)
+  // between brackets \\!\\[allbutbrackets\\]
+  // between parantheses \\(allbutparentheses\\)
+  
+  const imgRegExp = new RegExp("\\!\\[(((?!\\[|\\]).)+)\\]\\((((?!\\(|\\)).)+)\\)")
+
+  const delimeter = [/^\!\[/, /\]\(.+\)$/];
+  
+  const extra: ParsingPatternExtras = {
+    props: {
+      src: /(?<=\().+(?=\)$)/,
+      alt: /(?<=^\!\[).+(?=\])/
+    },
+    contentless: true
+  }
+     
+  return {tag: 'img', regExp: imgRegExp, delimeter, extra}
+}
+
+function bold(): ParsingPattern {
+  
+  const boldRegExp = new RegExp("\\*\\*(((?!\\*\\*).)+)\\*\\*")
+  const delimeter = [new RegExp('^\\*\\*'), new RegExp('\\*\\*$')];   
+
+  return {tag: 'strong', regExp: boldRegExp, delimeter}
+}
+
+function italic(): ParsingPattern {
+  
+  const italicRegExp = new RegExp("\\*(((?!\\*).)+)\\*")
+
+  const delimeter = [new RegExp('^\\*'), new RegExp('\\*$')]
+
+  return {tag: 'i', regExp: italicRegExp, delimeter}
+}
+
+function highlight(): ParsingPattern {
+  const highlightRegExp = /""((?!"").)+""/;
+
+  const delimeter = [/^""/, /""$/];
+
+  return {tag: 'mark', regExp: highlightRegExp, delimeter}
+}
+
+mdParser.newLeafBlockPattern([
+  headings(1),
+  headings(2),
+  headings(3),
+  headings(4),
+  headings(5),
+  headings(6),
+  codeBlocks()
+]);
+
+mdParser.newInlinePattern([
+  links(),
+  codeSpan(),
+  images(),
+  bold(),
+  italic(),
+  highlight()
+]);
+
+export default mdParser;
