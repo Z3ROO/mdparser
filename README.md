@@ -2,8 +2,29 @@
 
 It parses markdown to html
 
-To-do
-- Refactor patterns into a factory
-- implement tests
-- Implement container blocks
+## Leaf blocks
+ - Thematic breaks
+ - ATX headings - DONE
+ - Setext headings
+ - Indented code blocks
+ - Fenced code blocks
+ - HTML blocks
+ - Link reference definitions
+ - Paragraphs
+ - Blank lines
 
+## Container blocks
+ - Block quotes
+ - List items
+ - Lists
+
+## Inlines
+ - Code spans
+ - Emphasis and strong emphasis
+ - Links
+ - Images
+ - Autolinks
+ - Raw HTML
+ - Hard line breaks
+ - Soft line breaks
+ - Textual content
