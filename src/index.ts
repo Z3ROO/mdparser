@@ -430,11 +430,11 @@ mdParser.newLeafBlockPattern([
 ]);
 
 mdParser.newInlinePattern([
-  links(),
-  codeSpan(),
-  images(),
   bold(),
   italic(),
+  images(),
+  links(),
+  codeSpan(),
   highlight()
 ]);
 
