@@ -319,7 +319,7 @@ function headings(num: number): ParsingPattern {
 
   const headingRegExp = new RegExp("(^ {0,3}|\n+ {0,3})#{"+num+"} +.*")
 
-  const delimeter = [new RegExp(`(^|\n+)${'#'.repeat(num)}\\s+`)]      
+  const delimeter = [new RegExp(`(^ {0,3}|\n+)${'#'.repeat(num)}\\s+`)]      
 
   return {tag: 'h'+num, regExp: headingRegExp, delimeter}
 }
