@@ -2,7 +2,7 @@
 export interface ParsingPattern {
   tag: string, 
   regExp: RegExp, 
-  delimeter: RegExp[], 
+  delimeter?: RegExp[], 
   extra?: ParsingPatternExtras
 }
 
@@ -89,7 +89,7 @@ export class MDParser {
         node.content = node.content.trim();
       
       return node 
-    }).filter((node) => typeof node.content === 'string' && node.content.trim());
+    }).filter((node) => typeof node.content === 'string' && (node.content.trim() || node.contentless));
 
     return parsed;    
   }
@@ -169,14 +169,15 @@ export class MDParser {
       let newASTNode: IAST = {
         type: pattern.tag, 
         content: match
-      }
-      const [beggining, endign] = pattern.delimeter;
+      }      
       
       if (pattern.extra?.contentless) {
         newASTNode.content = '';
         newASTNode.contentless = true;
       }
       else {
+        const [beggining, endign] = pattern.delimeter;
+
         newASTNode.content = newASTNode.content as string;
         newASTNode.content = newASTNode.content.replace(beggining, '').replace(endign, '');
       }
@@ -218,6 +219,7 @@ export class MDParser {
   }
   
   #parseASTIntoMarkdown(AST: IAST[], isOuterMostNode = true):string {
+    if (isOuterMostNode) console.log(AST);
     let parsedAST: string|string[] = AST.map(node => {
       if (isOuterMostNode && node.type === 'text'){
         node.type = 'p'
@@ -314,6 +316,16 @@ export class MDParser {
 }
 
 const mdParser = new MDParser()
+
+function thematicBreak(): ParsingPattern {
+  const regExp = /(^ {0,3}|\n+ {0,3})((- *){3,}|(\* *){3,}|(_ *){3,}) *\n/
+
+  return {
+    regExp, tag: 'hr', extra: {
+      contentless: true
+    }
+  }
+}
 
 function headings(num: number): ParsingPattern {
 
@@ -420,6 +432,7 @@ function highlight(): ParsingPattern {
 }
 
 mdParser.newLeafBlockPattern([
+  thematicBreak(),
   headings(1),
   headings(2),
   headings(3),

@@ -3,7 +3,7 @@
 It parses markdown to html
 
 ## Leaf blocks
- - Thematic breaks
+ - Thematic breaks - DONE
  - ATX headings - DONE
  - Setext headings
  - Indented code blocks
