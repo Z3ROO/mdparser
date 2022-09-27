@@ -5,6 +5,7 @@ export interface ParsingPattern {
   delimeter: RegExp[], 
   extra?: ParsingPatternExtras
 }
+
 export interface ParsingPatternExtras {
   class?: string,
   props?: {
@@ -30,18 +31,12 @@ export interface IAST {
 
 
 export class MDParser {
-  #originalText: string;
   parsedText: string;
   AST: IAST[];
 
-  constructor(originalText: string) {
-    this.#originalText = originalText;
-    this.parsedText = this.#initParsing(originalText);
-  }
-
-  #initParsing(text: string, config?: any): string {
+  public parse(text: string, config?: any): string {
     text = this.#externalFunctionality(text);
-    // all container blocks recursevely
+    
     this.AST = this.#parseContainerBlocks(text);
     this.AST = this.#parseLeafBlocks(this.AST);
     this.AST = this.#parseInlines(this.AST);
@@ -160,41 +155,42 @@ export class MDParser {
       const matchOffsetIndex = text.indexOf(match)
       const matchLength = match.length;
       
-      let newBlock: IAST = {
+      let newASTNode: IAST = {
         type: pattern.tag, 
         content: match
       }
       const [beggining, endign] = pattern.delimeter;
       
       if (pattern.extra?.contentless) {
-        newBlock.content = '';
-        newBlock.contentless = true;
+        newASTNode.content = '';
+        newASTNode.contentless = true;
       }
       else {
-        newBlock.content = newBlock.content as string;
-        newBlock.content = newBlock.content.replace(beggining, '').replace(endign, '');
+        newASTNode.content = newASTNode.content as string;
+        newASTNode.content = newASTNode.content.replace(beggining, '').replace(endign, '');
       }
 
       if (pattern.extra?.props) {
-        newBlock.props = {}
+        newASTNode.props = {};
         for (let prop in pattern.extra.props) {
-          const propMatch = match.match(pattern.extra.props[prop])
-          if (propMatch === null) throw new Error('prop pattern returned null')
+          const propMatch = match.match(pattern.extra.props[prop]);
+          if (propMatch === null) 
+            throw new Error('prop pattern returned null');
 
-          newBlock.props[prop] = propMatch[0];
+          newASTNode.props[prop] = propMatch[0];
         }
       }      
       
       if (pattern.extra?.escapeContent) {
-        newBlock.content = this.#escapeSpecialCharacters(newBlock.content as string);
+        newASTNode.content = this.#escapeSpecialCharacters(newASTNode.content as string);
       }
 
       if (pattern.extra?.class) 
-        newBlock.class = pattern.extra.class;
+        newASTNode.class = pattern.extra.class;
       if (pattern.extra?.wrapper)
-        newBlock.wrapper = pattern.extra.wrapper;
+        newASTNode.wrapper = pattern.extra.wrapper;
       
-      const finalBatch = [newBlock];
+      const finalBatch = [newASTNode];
       
       const previousContent = text.substring(0,matchOffsetIndex);
       if (previousContent)
@@ -210,20 +206,20 @@ export class MDParser {
     return null
   }
   
-  #parseASTIntoMarkdown(AST: IAST[], outerMostNode = true):string {
+  #parseASTIntoMarkdown(AST: IAST[], isOuterMostNode = true):string {
     let parsedAST: string|string[] = AST.map(node => {
-      if (outerMostNode && node.type === 'text'){
+      if (isOuterMostNode && node.type === 'text'){
         node.type = 'p'
       }
       
-      let additional = ''
+      let htmlTagBody = ''
 
       if (node.class)
-        additional += ` class="${node.class}"`
+        htmlTagBody += ` class="${node.class}"`
 
       if (node.props) {
         for (let prop in node.props) {
-          additional += ` ${prop}="${node.props[prop]}"`
+          htmlTagBody += ` ${prop}="${node.props[prop]}"`
         }
       }
 
@@ -234,12 +230,12 @@ export class MDParser {
 
       if (typeof node.content === 'string'){
         if (!node.contentless)
-          return `<${node.type}${additional}>${node.content}</${node.type}>`
+          return `<${node.type}${htmlTagBody}>${node.content}</${node.type}>`
         else 
-          return `<${node.type}${additional}/>`
+          return `<${node.type}${htmlTagBody}/>`
       }
 
-      return `<${node.type}${additional}>${this.#parseASTIntoMarkdown(node.content as IAST[], false)}</${node.type}>`
+      return `<${node.type}${htmlTagBody}>${this.#parseASTIntoMarkdown(node.content as IAST[], false)}</${node.type}>`
     })
 
     parsedAST = parsedAST.join('');
@@ -408,5 +404,6 @@ export class MDParser {
   #cleanBackslashes(currentText: string): string {
     return currentText.replace(/\\/g, '');
   }
-
 }
+
+export default new MDParser();
