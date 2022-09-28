@@ -1,5 +1,19 @@
 import { ParsingPattern, ParsingPatternExtras } from "./index"
 
+// CONTAINER BLOCKS
+
+export function blockQuote(): ParsingPattern {
+  return {
+    regExp: /((^|\n) {0,3}(>.*))(\n {0,3}(>?.+))*/,
+    tag: 'blockquote',
+    delimeter: [
+      /((?<=(^|\n))|^\n) {0,3}>/g
+    ]
+  }
+}
+
+// LEAFBLOCKS
+
 export function thematicBreak(): ParsingPattern {
   const regExp = /(^ {0,3}|\n+ {0,3})((- *){3,}|(\* *){3,}|(_ *){3,}) *\n/
 

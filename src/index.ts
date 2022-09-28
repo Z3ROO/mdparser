@@ -17,11 +17,11 @@ export interface ParsingPatternExtras {
 }
 
 import * as he from 'he';
-import { thematicBreak, headings, codeBlocks, bold, italic, images, links, codeSpan, highlight } from './builtInPatterns';
+import { thematicBreak, headings, codeBlocks, bold, italic, images, links, codeSpan, highlight, blockQuote } from './builtInPatterns';
 
-export interface IAST {
+export interface IASTNode {
   type: string
-  content: string | IAST | IAST[]
+  content: string | IASTNode[]
   class?: string,
   wrapper?: string
   props?: {
@@ -33,7 +33,7 @@ export interface IAST {
 
 export class MDParser {
   parsedText: string;
-  AST: IAST[];
+  AST: IASTNode[];
   containerBlocks: ParsingPattern[] = []
   leafBlocks: ParsingPattern[] = []
   inlineBlocks: ParsingPattern[] = []
@@ -41,16 +41,22 @@ export class MDParser {
   public parse(text: string, config?: any): string {
     text = this.#externalFunctionality(text);
     
-    this.AST = [{
+    this.AST = this.#buildAST(text);
+
+    return this.#parseASTIntoMarkdown(this.AST);
+  }
+
+  #buildAST(text: string) {
+   let AST: IASTNode[] = [{
       type: 'text',
       content: text
     }]
 
-    this.AST = this.#parseContainerBlocks(this.AST);
-    this.AST = this.#parseLeafBlocks(this.AST);
-    this.AST = this.#parseInlines(this.AST);
-
-    return this.#parseASTIntoMarkdown(this.AST);
+    AST = this.#parseContainerBlocks(AST);
+    console.log(AST)
+    AST = this.#parseLeafBlocks(AST);
+    AST = this.#parseInlines(AST);
+    return AST
   }
 
   public newContainerBlockPattern(pattern: ParsingPattern| ParsingPattern[]) {
@@ -71,36 +77,96 @@ export class MDParser {
     return text
   }
 
-  #parseContainerBlocks(parseable: IAST[]): IAST[] {
-    
-    //to be implemented
+  #parseContainerBlocks(parseable: IASTNode[]): IASTNode[] {
+    let parsed = parseable;
 
-    return parseable;
+    this.containerBlocks.forEach(pattern => {
+      parsed = this.#iterateContainerBlocks(parsed, pattern);
+    });
+    
+    //trimming text nodes
+    parsed = parsed.map((node) => {
+      if (node.type === 'text' && typeof node.content === 'string')
+        node.content = node.content.trim();
+      
+      return node 
+    }).filter((node) => {
+      if (node.type !== 'text')
+        return true;
+      else if (typeof node.content === 'string' && (node.content.trim() || node.contentless))
+        return true;
+      
+      return false;
+    });
+
+    return parsed;    
+  }
+
+  #iterateContainerBlocks(parseable: IASTNode[], pattern: ParsingPattern): IASTNode[] {
+    let concluded = true;
+
+    let parsed: (IASTNode|IASTNode[])[] = parseable.map((node) => {
+      if (['ul','li','blockquote'].includes(node.type)) {
+        return node;
+      }
+      else if (node.type === 'text') {
+        node.content = node.content as string;
+        let nodeParsed = this.#parse(node.content, pattern);
+        
+        if (nodeParsed != null){
+          for (const item of nodeParsed) {
+            if (item.type !== 'text') {
+              item.content = this.#buildAST(item.content as string)
+            }
+          }
+
+          concluded = false;            
+          return nodeParsed;
+        }
+      }
+
+      return node
+    })
+
+    parsed = Array().concat.apply([], parsed); /// (IASTNode|IASTNode[])[] to IASTNode[]
+
+    if (concluded)
+      return parsed as IASTNode[];
+    else
+      return this.#iterateContainerBlocks(parsed as IASTNode[], pattern);
   }
   
-  #parseLeafBlocks(parseable: IAST[]): IAST[] {
+  #parseLeafBlocks(parseable: IASTNode[]): IASTNode[] {
     let parsed = parseable;
 
     this.leafBlocks.forEach(pattern => {
       parsed = this.#iterateLeafBlocks(parsed, pattern);
     });
     
+    //trimming text nodes
     parsed = parsed.map((node) => {
       if (node.type === 'text' && typeof node.content === 'string')
         node.content = node.content.trim();
       
       return node 
-    }).filter((node) => typeof node.content === 'string' && (node.content.trim() || node.contentless));
+    }).filter((node) => {
+      if (node.type !== 'text')
+        return true;
+      else if (typeof node.content === 'string' && (node.content.trim() || node.contentless))
+        return true;
+      
+      return false;
+    });
 
     return parsed;    
   }
 
-  #iterateLeafBlocks(parseable: IAST[], pattern: ParsingPattern): IAST[] {
+  #iterateLeafBlocks(parseable: IASTNode[], pattern: ParsingPattern): IASTNode[] {
     let concluded = true;
 
-    let parsed: (IAST|IAST[])[] = parseable.map((node) => {
+    let parsed: (IASTNode|IASTNode[])[] = parseable.map((node) => {
       if (['ul','li','blockquote'].includes(node.type)) {
-        //return something;
+        // dont know yet
       }
       else if (node.type === 'text') {
         node.content = node.content as string;
@@ -114,15 +180,15 @@ export class MDParser {
       return node
     })
 
-    parsed = Array().concat.apply([], parsed); /// (IAST|IAST[])[] to IAST[]
+    parsed = Array().concat.apply([], parsed); /// (IASTNode|IASTNode[])[] to IASTNode[]
 
     if (concluded)
-      return parsed as IAST[];
+      return parsed as IASTNode[];
     else
-      return this.#iterateLeafBlocks(parsed as IAST[], pattern);
+      return this.#iterateLeafBlocks(parsed as IASTNode[], pattern);
   }
 
-  #parseInlines(parseable: IAST[]): IAST[] {
+  #parseInlines(parseable: IASTNode[]): IASTNode[] {
     let parsed = parseable;
 
     this.inlineBlocks.forEach(pattern => {
@@ -132,7 +198,7 @@ export class MDParser {
     return parsed
   }
 
-  #iterateInlines(parseable: IAST[], pattern: ParsingPattern):IAST[] {
+  #iterateInlines(parseable: IASTNode[], pattern: ParsingPattern):IASTNode[] {
     let concluded = true;
     let parsed = parseable.map(node => {
       if (typeof node.content === 'string') {
@@ -147,7 +213,7 @@ export class MDParser {
           return node
       }
 
-      node.content = this.#iterateInlines(node.content as IAST[], pattern);
+      node.content = this.#iterateInlines(node.content as IASTNode[], pattern);
       return node
     })
 
@@ -159,7 +225,7 @@ export class MDParser {
       return this.#iterateInlines(parsed, pattern);
   }
 
-  #parse(text: string, pattern: ParsingPattern): IAST[] {
+  #parse(text: string, pattern: ParsingPattern): IASTNode[] {
     let matchPattern = text.match(pattern.regExp);
 
     if (matchPattern) {
@@ -167,7 +233,7 @@ export class MDParser {
       const matchOffsetIndex = text.indexOf(match)
       const matchLength = match.length;
       
-      let newASTNode: IAST = {
+      let newASTNode: IASTNode = {
         type: pattern.tag, 
         content: match
       }      
@@ -219,8 +285,8 @@ export class MDParser {
     return null
   }
   
-  #parseASTIntoMarkdown(AST: IAST[], isOuterMostNode = true):string {
-    if (isOuterMostNode) console.log(AST);
+  #parseASTIntoMarkdown(AST: IASTNode[], isOuterMostNode = true):string {
+    //if (isOuterMostNode) console.log(AST);
     let parsedAST: string|string[] = AST.map(node => {
       if (isOuterMostNode && node.type === 'text'){
         node.type = 'p'
@@ -249,7 +315,7 @@ export class MDParser {
           return `<${node.type}${htmlTagBody}/>`
       }
 
-      return `<${node.type}${htmlTagBody}>${this.#parseASTIntoMarkdown(node.content as IAST[], false)}</${node.type}>`
+      return `<${node.type}${htmlTagBody}>${this.#parseASTIntoMarkdown(node.content as IASTNode[], false)}</${node.type}>`
     })
 
     parsedAST = parsedAST.join('');
@@ -318,6 +384,9 @@ export class MDParser {
 
 const mdParser = new MDParser()
 
+mdParser.newContainerBlockPattern([
+  blockQuote()
+])
 
 mdParser.newLeafBlockPattern([
   thematicBreak(),
