@@ -34,9 +34,9 @@ export interface IASTNode {
 export class MDParser {
   parsedText: string;
   AST: IASTNode[];
-  containerBlocks: ParsingPattern[] = []
-  leafBlocks: ParsingPattern[] = []
-  inlineBlocks: ParsingPattern[] = []
+  containerBlockPatterns: ParsingPattern[] = [];
+  leafBlockPatterns: ParsingPattern[] = [];
+  inlineBlockPatterns: ParsingPattern[] = [];
 
   public parse(text: string, config?: any): string {
     text = this.#externalFunctionality(text);
@@ -53,22 +53,26 @@ export class MDParser {
     }]
 
     AST = this.#parseContainerBlocks(AST);
-    console.log(AST)
+    AST = this.#trimTextNodes(AST);
+
     AST = this.#parseLeafBlocks(AST);
+    AST = this.#trimTextNodes(AST);
+
     AST = this.#parseInlines(AST);
+    
     return AST
   }
 
   public newContainerBlockPattern(pattern: ParsingPattern| ParsingPattern[]) {
-    this.containerBlocks = this.containerBlocks.concat(pattern)
+    this.containerBlockPatterns = this.containerBlockPatterns.concat(pattern)
   }
 
   public newLeafBlockPattern(pattern: ParsingPattern| ParsingPattern[]) {
-    this.leafBlocks = this.leafBlocks.concat(pattern)
+    this.leafBlockPatterns = this.leafBlockPatterns.concat(pattern)
   }
 
   public newInlinePattern(pattern: ParsingPattern|ParsingPattern[]) {
-    this.inlineBlocks = this.inlineBlocks.concat(pattern);
+    this.inlineBlockPatterns = this.inlineBlockPatterns.concat(pattern);
   }
 
   #externalFunctionality(text: string):string {
@@ -80,52 +84,33 @@ export class MDParser {
   #parseContainerBlocks(parseable: IASTNode[]): IASTNode[] {
     let parsed = parseable;
 
-    this.containerBlocks.forEach(pattern => {
-      parsed = this.#iterateContainerBlocks(parsed, pattern);
-    });
-    
-    //trimming text nodes
-    parsed = parsed.map((node) => {
-      if (node.type === 'text' && typeof node.content === 'string')
-        node.content = node.content.trim();
-      
-      return node 
-    }).filter((node) => {
-      if (node.type !== 'text')
-        return true;
-      else if (typeof node.content === 'string' && (node.content.trim() || node.contentless))
-        return true;
-      
-      return false;
+    this.containerBlockPatterns.forEach(pattern => {
+      parsed = this.#parseSingleContainerBlocksPattern(parsed, pattern);
     });
 
     return parsed;    
   }
 
-  #iterateContainerBlocks(parseable: IASTNode[], pattern: ParsingPattern): IASTNode[] {
+  #parseSingleContainerBlocksPattern(parseable: IASTNode[], pattern: ParsingPattern): IASTNode[] {
     let concluded = true;
 
     let parsed: (IASTNode|IASTNode[])[] = parseable.map((node) => {
-      if (['ul','li','blockquote'].includes(node.type)) {
+      if (node.type !== 'text') 
         return node;
-      }
-      else if (node.type === 'text') {
-        node.content = node.content as string;
-        let nodeParsed = this.#parse(node.content, pattern);
-        
-        if (nodeParsed != null){
-          for (const item of nodeParsed) {
-            if (item.type !== 'text') {
-              item.content = this.#buildAST(item.content as string)
-            }
+
+      node.content = node.content as string;
+      const nodeParsed = this.#parseTextToAST(node.content, pattern);
+      
+      if (nodeParsed != null){
+        for (const item of nodeParsed) {
+          if (item.type !== 'text') {
+            item.content = this.#buildAST(item.content as string)
           }
-
-          concluded = false;            
-          return nodeParsed;
         }
-      }
 
-      return node
+        concluded = false;
+        return nodeParsed;
+      }
     })
 
     parsed = Array().concat.apply([], parsed); /// (IASTNode|IASTNode[])[] to IASTNode[]
@@ -133,76 +118,58 @@ export class MDParser {
     if (concluded)
       return parsed as IASTNode[];
     else
-      return this.#iterateContainerBlocks(parsed as IASTNode[], pattern);
+      return this.#parseSingleContainerBlocksPattern(parsed as IASTNode[], pattern);
   }
   
   #parseLeafBlocks(parseable: IASTNode[]): IASTNode[] {
     let parsed = parseable;
 
-    this.leafBlocks.forEach(pattern => {
-      parsed = this.#iterateLeafBlocks(parsed, pattern);
-    });
-    
-    //trimming text nodes
-    parsed = parsed.map((node) => {
-      if (node.type === 'text' && typeof node.content === 'string')
-        node.content = node.content.trim();
-      
-      return node 
-    }).filter((node) => {
-      if (node.type !== 'text')
-        return true;
-      else if (typeof node.content === 'string' && (node.content.trim() || node.contentless))
-        return true;
-      
-      return false;
+    this.leafBlockPatterns.forEach(pattern => {
+      parsed = this.#parseSingleLeafBlockPattern(parsed, pattern);
     });
 
-    return parsed;    
+    return parsed;
   }
 
-  #iterateLeafBlocks(parseable: IASTNode[], pattern: ParsingPattern): IASTNode[] {
+  #parseSingleLeafBlockPattern(parseable: IASTNode[], pattern: ParsingPattern): IASTNode[] {
     let concluded = true;
 
     let parsed: (IASTNode|IASTNode[])[] = parseable.map((node) => {
-      if (['ul','li','blockquote'].includes(node.type)) {
-        // dont know yet
+      if (node.type !== 'text') 
+        return node;
+      
+      node.content = node.content as string;
+      const nodeParsed = this.#parseTextToAST(node.content, pattern);
+      
+      if (nodeParsed != null){
+        concluded = false;
+        return nodeParsed;
       }
-      else if (node.type === 'text') {
-        node.content = node.content as string;
-        const nodeParsed = this.#parse(node.content, pattern);
-        if (nodeParsed != null){
-          concluded = false;
-          return nodeParsed;
-        }
-      }
-
-      return node
-    })
+    });
 
     parsed = Array().concat.apply([], parsed); /// (IASTNode|IASTNode[])[] to IASTNode[]
 
     if (concluded)
       return parsed as IASTNode[];
     else
-      return this.#iterateLeafBlocks(parsed as IASTNode[], pattern);
+      return this.#parseSingleLeafBlockPattern(parsed as IASTNode[], pattern);
   }
 
   #parseInlines(parseable: IASTNode[]): IASTNode[] {
     let parsed = parseable;
 
-    this.inlineBlocks.forEach(pattern => {
-      this.#iterateInlines(parsed, pattern)
+    this.inlineBlockPatterns.forEach(pattern => {
+      this.#parseSingleInlineBlockPattern(parsed, pattern);
     });
 
-    return parsed
+    return parsed;
   }
 
-  #iterateInlines(parseable: IASTNode[], pattern: ParsingPattern):IASTNode[] {
+  #parseSingleInlineBlockPattern(parseable: IASTNode[], pattern: ParsingPattern):IASTNode[] {
     let concluded = true;
     let parsed = parseable.map(node => {
       if (typeof node.content === 'string') {
-        const nodeParsed = this.#parse(node.content, pattern)
+        const nodeParsed = this.#parseTextToAST(node.content, pattern)
 
         if (nodeParsed) {
           concluded = false;
@@ -213,7 +180,7 @@ export class MDParser {
           return node
       }
 
-      node.content = this.#iterateInlines(node.content as IASTNode[], pattern);
+      node.content = this.#parseSingleInlineBlockPattern(node.content as IASTNode[], pattern);
       return node
     })
 
@@ -222,10 +189,10 @@ export class MDParser {
     if (concluded)
       return parsed
     else
-      return this.#iterateInlines(parsed, pattern);
+      return this.#parseSingleInlineBlockPattern(parsed, pattern);
   }
 
-  #parse(text: string, pattern: ParsingPattern): IASTNode[] {
+  #parseTextToAST(text: string, pattern: ParsingPattern): IASTNode[] {
     let matchPattern = text.match(pattern.regExp);
 
     if (matchPattern) {
@@ -379,6 +346,22 @@ export class MDParser {
 
   #cleanBackslashes(currentText: string): string {
     return currentText.replace(/\\/g, '');
+  }
+
+  #trimTextNodes(AST: IASTNode[]) {
+    return AST.map((node) => {
+      if (node.type === 'text' && typeof node.content === 'string')
+        node.content = node.content.trim();
+      
+      return node 
+    }).filter((node) => {
+      if (node.type !== 'text')
+        return true;
+      else if (typeof node.content === 'string' && (node.content.trim() || node.contentless))
+        return true;
+      
+      return false;
+    });
   }
 }
 
