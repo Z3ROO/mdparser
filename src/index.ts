@@ -95,22 +95,23 @@ export class MDParser {
     let concluded = true;
 
     let parsed: (IASTNode|IASTNode[])[] = parseable.map((node) => {
-      if (node.type !== 'text') 
-        return node;
-
-      node.content = node.content as string;
-      const nodeParsed = this.#parseTextToAST(node.content, pattern);
-      
-      if (nodeParsed != null){
-        for (const item of nodeParsed) {
-          if (item.type !== 'text') {
-            item.content = this.#buildAST(item.content as string)
+      if (node.type === 'text') {
+        node.content = node.content as string;
+        const nodeParsed = this.#parseTextToAST(node.content, pattern);
+        
+        if (nodeParsed != null){
+          for (const item of nodeParsed) {
+            if (item.type !== 'text') {
+              item.content = this.#buildAST(item.content as string)
+            }
           }
-        }
 
-        concluded = false;
-        return nodeParsed;
+          concluded = false;
+          return nodeParsed;
+        }
       }
+
+      return node;
     })
 
     parsed = Array().concat.apply([], parsed); /// (IASTNode|IASTNode[])[] to IASTNode[]
@@ -135,16 +136,17 @@ export class MDParser {
     let concluded = true;
 
     let parsed: (IASTNode|IASTNode[])[] = parseable.map((node) => {
-      if (node.type !== 'text') 
-        return node;
-      
-      node.content = node.content as string;
-      const nodeParsed = this.#parseTextToAST(node.content, pattern);
-      
-      if (nodeParsed != null){
-        concluded = false;
-        return nodeParsed;
+      if (node.type === 'text') {
+        node.content = node.content as string;
+        const nodeParsed = this.#parseTextToAST(node.content, pattern);
+        
+        if (nodeParsed != null){
+          concluded = false;
+          return nodeParsed;
+        }
       }
+
+      return node;
     });
 
     parsed = Array().concat.apply([], parsed); /// (IASTNode|IASTNode[])[] to IASTNode[]
