@@ -1,4 +1,4 @@
-import mdParser from "../../dist/esm/index.js";
+import mdParser from "../../src/index.ts";
 
 const textarea = document.getElementById('textarea2');
 const viewer = document.getElementById('viewer');
