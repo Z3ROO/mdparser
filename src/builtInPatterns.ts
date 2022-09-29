@@ -2,6 +2,19 @@ import { ParsingPattern, ParsingPatternExtras } from "./index"
 
 // CONTAINER BLOCKS
 
+export function list() {
+  const marker = ' (-|[0-9]) '
+  const itemsRegExp = `(\n|^)${marker}(.+)(\n   .+)*`
+  const regExp = `(${itemsRegExp})+`
+  return {
+    regExp: new RegExp(regExp),
+    itemsRegExp: new RegExp(itemsRegExp),
+    itemsDelimeter: [new RegExp(`(?<=(\n|^))(${marker}|   )`, 'g')],
+    tag: 'ul',
+    itemsTag: 'li'
+  }
+}
+
 export function blockQuote(): ParsingPattern {
   return {
     regExp: /((^|\n) {0,3}(>.*))(\n {0,3}(>?.+))*/,

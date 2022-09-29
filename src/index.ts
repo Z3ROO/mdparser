@@ -1,28 +1,31 @@
 //hide implementation detail, let the code tell a story and dive in if necessary to understand how exactly happened
 export interface ParsingPattern {
-  tag: string, 
-  regExp: RegExp, 
-  delimeter?: RegExp[], 
+  tag: string
+  regExp: RegExp
+  itemsRegExp?: RegExp
+  delimeter?: RegExp[]
+  itemsDelimeter?: RegExp[]
+  itemsTag?: string
   extra?: ParsingPatternExtras
 }
 
 export interface ParsingPatternExtras {
-  class?: string,
+  class?: string
   props?: {
     [key: string]: RegExp
-  },
-  wrapper?: string,
-  contentless?: boolean,
+  }
+  wrapper?: string
+  contentless?: boolean
   escapeContent?: boolean
 }
 
 import * as he from 'he';
-import { thematicBreak, headings, codeBlocks, bold, italic, images, links, codeSpan, highlight, blockQuote } from './builtInPatterns';
+import { thematicBreak, headings, codeBlocks, bold, italic, images, links, codeSpan, highlight, blockQuote, list } from './builtInPatterns';
 
 export interface IASTNode {
   type: string
   content: string | IASTNode[]
-  class?: string,
+  class?: string
   wrapper?: string
   props?: {
     [key: string]: string
@@ -98,11 +101,32 @@ export class MDParser {
       if (node.type === 'text') {
         node.content = node.content as string;
         const nodeParsed = this.#parseTextToAST(node.content, pattern);
-        
         if (nodeParsed != null){
+          
           for (const item of nodeParsed) {
             if (item.type !== 'text') {
-              item.content = this.#buildAST(item.content as string)
+
+              if (pattern.itemsRegExp){
+                item.content = [{
+                  type: 'text',
+                  content: item.content
+                }];
+
+                const itemPattern = {
+                  regExp: pattern.itemsRegExp,
+                  delimeter: pattern.itemsDelimeter,
+                  tag: pattern.itemsTag
+                }
+
+                item.content = this.#parseSingleLeafBlockPattern(item.content, itemPattern);
+
+                item.content = item.content.map(node => {
+                  node.content = this.#buildAST(node.content as string);
+                  return node;
+                })
+              }
+              else
+                item.content = this.#buildAST(item.content as string)
             }
           }
 
@@ -196,7 +220,6 @@ export class MDParser {
 
   #parseTextToAST(text: string, pattern: ParsingPattern): IASTNode[] {
     let matchPattern = text.match(pattern.regExp);
-
     if (matchPattern) {
       const match = matchPattern[0];
       const matchOffsetIndex = text.indexOf(match)
@@ -212,12 +235,12 @@ export class MDParser {
         newASTNode.contentless = true;
       }
       else {
-        const [beggining, endign] = pattern.delimeter;
-
+        const [beggining, endign] = pattern.delimeter||[];
+        
         newASTNode.content = newASTNode.content as string;
         newASTNode.content = newASTNode.content.replace(beggining, '').replace(endign, '');
       }
-
+      
       if (pattern.extra?.props) {
         newASTNode.props = {};
         for (let prop in pattern.extra.props) {
@@ -370,7 +393,8 @@ export class MDParser {
 const mdParser = new MDParser()
 
 mdParser.newContainerBlockPattern([
-  blockQuote()
+  blockQuote(),
+  list()
 ])
 
 mdParser.newLeafBlockPattern([
