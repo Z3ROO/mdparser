@@ -39,22 +39,42 @@ export function thematicBreak(): ParsingPattern {
 
 export function headings(num: number): ParsingPattern {
 
-  const headingRegExp = new RegExp("(^ {0,3}|\n+ {0,3})#{"+num+"} +.*")
+  const headingRegExp = new RegExp("(^ {0,3}|\n {0,3})#{"+num+"} +.*")
 
-  const delimeter = [new RegExp(`(^ {0,3}|\n+)${'#'.repeat(num)}\\s+`)]      
+  const delimeter = [new RegExp(`(^ {0,3}|\n)${'#'.repeat(num)}\\s+`)]      
 
   return {tag: 'h'+num, regExp: headingRegExp, delimeter}
 }
 
-export function codeBlocks(): ParsingPattern {
-  const codeblocksRegExp = new RegExp('```(.*)\n((?!```).\n*)+\n```');
+export function indentedCodeBlock(): ParsingPattern {
 
-  const delimeter = [new RegExp('(^|\n*)```(.*)\n'), new RegExp('```$')]
+  return {
+    regExp: /((?<=(^|\n))    .+\n?)+/,
+    delimeter: [
+      /(?<=(^|\n))    /g
+    ],
+    tag: 'code',
+    extra: {
+      class: 'code-block',
+      wrapper: 'div',
+      escapeContent: true
+    }
+  }
+}
+
+export function fencedCodeBlocks(): ParsingPattern {
+  
+  const base = (marker:string) => marker+'(.*)\n+((?!'+marker+').\n*)+\n'+marker
+
+  //const codeblocksRegExp = new RegExp('(?<=(^|\n))~~~(.*)\n+((?!~~~).\n*)+\n~~~(\n|$)');
+  const codeblocksRegExp = new RegExp(`(?<=(^|\n))(${base('~~~')}|${base('```')})(\n|$)`);
+
+  const delimeter = [new RegExp('(^|\n*)(```|~~~)(.*)\n'), new RegExp('(?<=\n)(```|~~~)(\n$|$)')]
   const extra: ParsingPatternExtras = {
     class: 'code-block', 
     wrapper: 'div',
     props: {
-      id: /(?<=```).*(?=\n)/
+      id: /(?<=(```|~~~)).*(?=\n)/
     },
     escapeContent: true
   }

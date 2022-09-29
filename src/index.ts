@@ -20,7 +20,7 @@ export interface ParsingPatternExtras {
 }
 
 import * as he from 'he';
-import { thematicBreak, headings, codeBlocks, bold, italic, images, links, codeSpan, highlight, blockQuote, list } from './builtInPatterns';
+import { thematicBreak, headings, bold, italic, images, links, codeSpan, highlight, blockQuote, list, fencedCodeBlocks, indentedCodeBlock } from './builtInPatterns';
 
 export interface IASTNode {
   type: string
@@ -56,8 +56,7 @@ export class MDParser {
     }]
 
     AST = this.#parseContainerBlocks(AST);
-    AST = this.#trimTextNodes(AST);
-
+    
     AST = this.#parseLeafBlocks(AST);
     AST = this.#trimTextNodes(AST);
 
@@ -405,7 +404,8 @@ mdParser.newLeafBlockPattern([
   headings(4),
   headings(5),
   headings(6),
-  codeBlocks()
+  indentedCodeBlock(),
+  fencedCodeBlocks()
 ]);
 
 mdParser.newInlinePattern([

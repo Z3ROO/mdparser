@@ -6,8 +6,8 @@ It parses markdown to html
  - Thematic breaks - DONE
  - ATX headings - DONE
  - Setext headings
- - Indented code blocks
- - Fenced code blocks
+ - Indented code blocks - DONE
+ - Fenced code blocks - DONE
  - HTML blocks
  - Link reference definitions
  - Paragraphs
