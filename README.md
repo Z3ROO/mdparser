@@ -14,9 +14,9 @@ It parses markdown to html
  - Blank lines
 
 ## Container blocks
- - Block quotes
- - List items
- - Lists
+ - Block quotes - DONE
+ - List items - DONE
+ - Lists - DONE
 
 ## Inlines
  - Code spans
