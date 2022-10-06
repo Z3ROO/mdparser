@@ -5,7 +5,8 @@
     "module":"ES2020",
     "declaration": true,
     "noImplicitAny": true,
-    "allowJs": true
+    "allowJs": true,
+    "moduleResolution": "node"
   },
   "include": [
     "src/*"
@@ -13,6 +14,8 @@
   "exclude": [
     "dist",
     "node_modules",
-    "config"
+    "config",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
   ]
 }
