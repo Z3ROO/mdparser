@@ -31,15 +31,15 @@ export function thematicBreak(): ParsingPattern {
   const regExp = /(^ {0,3}|\n+ {0,3})((- *){3,}|(\* *){3,}|(_ *){3,}) *\n/
 
   return {
-    regExp, tag: 'hr', extra: {
-      contentless: true
+    regExp, tag: 'div', extra: {
+      class:'md-highlight-hr'
     }
   }
 }
 
 export function headings(num: number): ParsingPattern {
 
-  const headingRegExp = new RegExp("(^ {0,3}|\n {0,3})#{"+num+"} +.*")
+  const headingRegExp = new RegExp("(?<=(^|\n)) {0,3}#{"+num+"} +.*")
 
   const delimeter = [new RegExp(`(^ {0,3}|\n)${'#'.repeat(num)}\\s+`)]      
 
