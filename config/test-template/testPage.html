@@ -29,7 +29,9 @@
         margin: 0;
         outline: 0;
       }
-
+      #viewer {
+        outline: none;
+      }
       #viewerr {
         height: 100%;
         width: 50%;
@@ -55,7 +57,68 @@
       blockquote p {
         display: inline;
       }
-    </style>    
+
+      .mdsyntax-hr {
+        background-color: gold;
+      }
+
+      .mdsyntax-bold {
+        font-weight: bold;
+      }
+
+      .mdsyntax-italic {
+        font-style: italic;
+      }
+      
+      .marker {
+        color: rgb(161, 0, 161)
+      }
+
+      .mdsyntax-h1 {
+          font-weight: bold;
+          display: inline;
+        font-size: 36px;
+        line-height: 40px;
+      }
+
+      .mdsyntax-h2 {
+          font-weight: bold;
+          display: inline;
+          font-size: 30px;
+          line-height: 40px;
+      }
+
+      .mdsyntax-h3 {
+          font-weight: bold;
+          display: inline;
+          font-size: 24px;
+          line-height: 40px;
+      }
+
+      .mdsyntax-h4 {
+          font-weight: bold;
+          display: inline;
+          font-size: 18px;
+          line-height: 20px;
+      }
+
+      .mdsyntax-h5 {
+          font-weight: bold;
+          display: inline;
+          font-size: 14px;
+          line-height: 20px;
+      }
+
+      .mdsyntax-h6 {
+          font-weight: bold;
+          display: inline;
+          font-size: 12px;
+          line-height: 20px;
+      }
+
+    </style>
+    <link rel="stylesheet" href="/path/to/styles/default.min.css">
+    <script src="/path/to/highlight.min.js"></script>
   </head>
   <body>
     <div id="editor">
@@ -107,9 +170,9 @@ asdasd
       </textarea>
     </div>
     <div id="viewerr">
-      <pre id="viewer">
+      <pre id="viewer" class="language-markdown" contenteditable>
 
       </pre>
-    </div>
+    </div>  
   </body>
 </html>

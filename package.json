@@ -26,7 +26,8 @@
   },
   "license": "ISC",
   "dependencies": {
-    "he": "^1.2.0"
+    "he": "^1.2.0",
+    "highlight.js": "^11.6.0"
   },
   "devDependencies": {
     "@types/he": "^1.1.2",
