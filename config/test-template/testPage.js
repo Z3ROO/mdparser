@@ -1,11 +1,12 @@
-import mdParser from "../../src/index.ts";
-import editor from '../../src/editor.ts';
+import {Editor} from "../../src/index.ts";
 
 
 const textarea = document.getElementById('textarea2');
 const viewer = document.getElementById('viewer');
 
-editor(viewer);
+Editor(viewer, (e) => {
+  textarea.value = e.target.textContent;
+});
 
 //viewer.innerHTML = mdParser.parse(textarea.textContent);
 

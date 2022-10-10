@@ -5,6 +5,7 @@
     "module":"ES2020",
     "declaration": true,
     "noImplicitAny": true,
+    "esModuleInterop": true,
     "allowJs": true,
     "moduleResolution": "node"
   },

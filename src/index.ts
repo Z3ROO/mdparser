@@ -1,3 +1,5 @@
+import editor from './editor'
+
 export interface ParsingPattern {
   regExp: RegExp
   class: string
@@ -266,8 +268,8 @@ mdParser.newInlinePattern([
   // highlight()
 ]);
 
-function editor(node: HTMLPreElement) {
-
+export function Editor(node: Element, callback: (e: Event) => void) {
+  return editor(node, callback)
 }
 
 export default mdParser;

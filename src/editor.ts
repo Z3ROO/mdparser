@@ -1,13 +1,15 @@
 import mdParser from ".";
 
-export default function editor(node: Element) {
+export default function editor(node: Element, callback: (e:Event) => void) {
 
   node.addEventListener('input', (e: InputEvent) => {
     let cursorPosition = getCursorPosition(node);
     const target = e.target as Element;
     const rawMd = mdParser.extractRawMarkdown(target.innerHTML);
     target.innerHTML = mdParser.parse(rawMd);
-  
+    
+    if (callback) callback(e)
+
     setCursorPosition(node, cursorPosition);
   })
   
@@ -38,7 +40,9 @@ export default function editor(node: Element) {
   
       const rawMd = mdParser.extractRawMarkdown(target.innerHTML);
       target.innerHTML = mdParser.parse(rawMd);
-    
+
+      if (callback) callback(e)
+      
       setCursorPosition(node, cursorPosition);
     }
   })
