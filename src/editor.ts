@@ -1,8 +1,7 @@
 import mdParser from ".";
 
 export default function editor(node: Element, callback: (e:Event) => void) {
-
-  node.addEventListener('input', (e: InputEvent) => {
+  const inputEventHandler = (e: InputEvent) => {
     let cursorPosition = getCursorPosition(node);
     const target = e.target as Element;
     const rawMd = mdParser.extractRawMarkdown(target.innerHTML);
@@ -11,9 +10,9 @@ export default function editor(node: Element, callback: (e:Event) => void) {
     if (callback) callback(e)
 
     setCursorPosition(node, cursorPosition);
-  })
-  
-  node.addEventListener('keydown', (e: KeyboardEvent) => {
+  }
+
+  const keydownEventHandler = (e: KeyboardEvent) => {
     const characterMap: {[key: string]: { char: string, length: number}} = {
       'Tab': {
         char:'  ',
@@ -45,10 +44,19 @@ export default function editor(node: Element, callback: (e:Event) => void) {
       
       setCursorPosition(node, cursorPosition);
     }
-  })
+  }
+
+  node.addEventListener('input', inputEventHandler);
+  
+  node.addEventListener('keydown', keydownEventHandler);
+
+  return () => {
+    node.removeEventListener('input', inputEventHandler);  
+    node.removeEventListener('keydown', keydownEventHandler);
+  }
 }
 
-type IStat = { pos: number, done: boolean}
+type IStat = { pos: number, done: boolean }
 
 function getCursorPosition(parent: Element) {
   const selection = window.getSelection();
